@@ -1,32 +1,141 @@
+import { usePosts } from "@/hooks/usePosts";
 import { Image } from "expo-image";
-import React from "react";
+import * as ImagePicker from "expo-image-picker";
+import React, { useState } from "react";
 import {
-  ActivityIndicator,
+  Alert,
+  Modal,
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Index() {
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [description, setDescription] = useState<string | undefined>(undefined);
+  const[isUploading,setIsUploading] = useState(false)
+  const {createPosts} = usePosts();
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Error", "Please give media permissions");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setPreviewImage(result.assets[0].uri);
+      setShowPreview(true); // was missing — modal never opened for library picks
+    }
+  };
+
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Permission needed",
+        "We need camera permissions to take a photo.",
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setPreviewImage(result.assets[0].uri);
+      setShowPreview(true);
+    }
+  };
+
+  const showImagePicker = () => {
+    Alert.alert("Select Profile Image", "Choose an option", [
+      { text: "Camera", onPress: takePhoto },
+      { text: "Photo Library", onPress: pickImage },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  };
+
+  const closePreview = () => {
+    setShowPreview(false);
+    setPreviewImage(null);
+    setDescription(undefined);
+  };
+  const handlePost = async()=>{
+    if(!previewImage) return
+    setIsUploading(true)
+    try{
+      await createPosts(previewImage,description);
+      setPreviewImage(null);
+      setDescription("")
+      setShowPreview(false)
+    }
+    catch(error)
+    {
+       console.error("Error creating post:", error);
+      Alert.alert("Error", "Failed to create post. Please try again.");
+    }finally{
+      setIsUploading(false)
+    }
+  }
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Home Screen</Text>
+    <SafeAreaView style={styles.container} edges={["bottom", "top"]}>
+      {/* List */}
+      
+      <TouchableOpacity style={styles.fab} onPress={showImagePicker}>
+        <Text style={styles.fabText}>+</Text>
+      </TouchableOpacity>
 
-      <Image
-        source="https://picsum.photos/400/300"
-        style={styles.image}
-        contentFit="cover"
-      />
-
-      <TextInput placeholder="Enter your email" style={styles.input} />
-
-      <ActivityIndicator size="large" style={{ marginVertical: 20 }} />
-
-      <Text style={styles.helperText}>
-        Native tab screen is rendering correctly.
-      </Text>
-    </View>
+      <Modal visible={showPreview} transparent animationType="fade">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>
+              Preview Your Post before you post it
+            </Text>
+            {previewImage && (
+              <Image
+                cachePolicy={"none"}
+                source={{ uri: previewImage }}
+                style={styles.previewImage}
+                contentFit="cover"
+              />
+            )}
+            <TextInput
+              style={styles.descriptionInput}
+              placeholder="Add a description (optional)"
+              placeholderTextColor="#999"
+              value={description}
+              onChangeText={setDescription}
+              multiline
+              maxLength={500}
+              textAlignVertical="top"
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={closePreview}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalButton, styles.postButton]}>
+                <Text style={styles.postButtonText} onPress={handlePost}>Post</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
   );
 }
 
@@ -35,30 +144,92 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: 20,
+  },
+  fab: {
+    position: "absolute",
+    bottom: 10,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#000",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  fabText: {
+    color: "#fff",
+    fontSize: 32,
+    fontWeight: "300",
+    lineHeight: 32,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  modalContent: {
     backgroundColor: "#fff",
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    marginBottom: 20,
-  },
-  image: {
-    width: 300,
-    height: 200,
-    borderRadius: 12,
-    marginBottom: 20,
-  },
-  input: {
+    borderRadius: 16,
+    padding: 24,
     width: "100%",
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 20,
+    maxWidth: 400,
   },
-  helperText: {
-    color: "#374151",
-    fontSize: 14,
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  previewImage: {
+    width: "100%",
+    aspectRatio: 1,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  descriptionInput: {
+    width: "100%",
+    minHeight: 80,
+    maxHeight: 120,
+    backgroundColor: "#f5f5f5",
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    color: "#000",
+  },
+  modalButtons: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  cancelButton: {
+    backgroundColor: "#f5f5f5",
+  },
+  cancelButtonText: {
+    color: "#000",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  postButton: {
+    backgroundColor: "#000",
+  },
+  postButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
