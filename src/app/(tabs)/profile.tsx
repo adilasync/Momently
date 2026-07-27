@@ -1,24 +1,8 @@
-import React, { useRef, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
-
-import {
-  Button,
-  Column,
-  Host,
-  ModalBottomSheet,
-} from "@expo/ui/jetpack-compose";
-import type { ModalBottomSheetRef } from "@expo/ui/jetpack-compose";
+import React from "react";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export default function Profile() {
-  const [visible, setVisible] = useState(false);
-  const sheetRef = useRef<ModalBottomSheetRef>(null);
-
-  const hideSheet = async () => {
-    await sheetRef.current?.hide();
-    setVisible(false);
-  };
-
   return (
     <View style={styles.container}>
       <Image
@@ -52,38 +36,9 @@ export default function Profile() {
         </View>
       </View>
 
-      <Host matchContents>
-        <Column>
-          <Button onClick={() => setVisible(true)}>
-            <Text>Open Bottom Sheet</Text>
-          </Button>
-
-          {visible && (
-            <ModalBottomSheet
-              ref={sheetRef}
-              onDismissRequest={() => setVisible(false)}
-            >
-              <Column>
-                <View style={styles.sheetContent}>
-                  <Text style={styles.sheetTitle}>
-                    Bottom Sheet Content
-                  </Text>
-
-                  <Text style={styles.sheetDescription}>
-                    This is a native Material 3 Bottom Sheet from Expo UI.
-                  </Text>
-
-                  <View style={styles.sheetAction}>
-                    <Button onClick={hideSheet}>
-                      <Text>Close</Text>
-                    </Button>
-                  </View>
-                </View>
-              </Column>
-            </ModalBottomSheet>
-          )}
-        </Column>
-      </Host>
+      <TouchableOpacity style={styles.button}>
+        <Text style={styles.buttonText}>Profile ready</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -163,24 +118,16 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     textAlign: "right",
   },
-  sheetContent: {
-    paddingHorizontal: 24,
-    paddingTop: 8,
-    paddingBottom: 28,
+  button: {
+    marginTop: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: "#111827",
   },
-  sheetTitle: {
-    color: "#0F172A",
-    fontSize: 20,
-    fontWeight: "700",
-    marginBottom: 10,
-  },
-  sheetDescription: {
-    color: "#475569",
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  sheetAction: {
-    alignItems: "flex-start",
-    marginTop: 20,
+  buttonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

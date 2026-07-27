@@ -1,17 +1,14 @@
 import { Image } from "expo-image";
-import { Link, useRouter } from "expo-router";
+import React from "react";
 import {
   ActivityIndicator,
   StyleSheet,
+  Text,
   TextInput,
   View,
 } from "react-native";
-import {Host,
-  Button,
-  Text,} from "@expo/ui/jetpack-compose"
-export default function Index() {
-  const router = useRouter();
 
+export default function Index() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Home Screen</Text>
@@ -26,17 +23,9 @@ export default function Index() {
 
       <ActivityIndicator size="large" style={{ marginVertical: 20 }} />
 
-      <Link href="/about" style={styles.link}>
-        Go to About Screen
-      </Link>
-
-      <View style={{ }}>
-        <Host matchContents>
-  <Button onClick={() => router.push("/about")}>
-    <Text>About</Text>
-  </Button>
-</Host>
-      </View>
+      <Text style={styles.helperText}>
+        Native tab screen is rendering correctly.
+      </Text>
     </View>
   );
 }
@@ -68,9 +57,8 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 20,
   },
-  link: {
-    color: "blue",
-    fontSize: 16,
-    marginTop: 10,
+  helperText: {
+    color: "#374151",
+    fontSize: 14,
   },
 });

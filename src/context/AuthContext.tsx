@@ -1,5 +1,12 @@
 import { supabase } from "@/lib/supabase/client";
-import { createContext, ReactNode, useContext, useState } from "react";
+import {
+  createContext,
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 
 export interface User {
   id: string;
@@ -7,11 +14,12 @@ export interface User {
   email: string;
   username: string;
   profileImage?: string;
-  onboardingCompleted: boolean;
+  onboardingCompleted?: boolean;
 }
 
 interface AuthContextType {
   user: User | null;
+  isLoading: boolean;
   signUp: (email: string, password: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   updateUser: (userData: Partial<User>) => Promise<void>;
@@ -22,6 +30,37 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const checkSession = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (session?.user) {
+        const profile = await fetchUserProfile(session.user.id);
+        setUser(profile);
+      } else {
+        setUser(null);
+      }
+    } catch (error) {
+      console.error("Error checking session:", error);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkSession();
+  }, [checkSession]);
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+  };
 
   const fetchUserProfile = async (userId: string): Promise<User | null> => {
     try {
@@ -59,10 +98,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return null;
     }
   };
-    const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-  };
+
   const signIn = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -82,9 +118,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       email,
       password,
     });
+
     if (error) throw error;
 
-    if (data.user) console.log(data.user);
+    if (data.user) {
+      const profile = await fetchUserProfile(data.user.id);
+      setUser(profile);
+    }
   };
 
   const updateUser = async (userData: Partial<User>) => {
@@ -118,9 +158,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       throw error;
     }
   };
-
   return (
-    <AuthContext.Provider value={{ user, signUp, updateUser,signIn,signOut }}>
+    <AuthContext.Provider
+      value={{ user, signUp, updateUser, signIn, signOut, isLoading }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -128,6 +169,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) throw new Error("must be inside  the provider");
+  if (context === undefined) {
+    throw new Error("must be inside the provider");
+  }
   return context;
 };
