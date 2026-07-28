@@ -1,7 +1,8 @@
-import { useAuth } from "@/context/AuthContext"
+import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase/client";
 import { uploadPostImage } from "@/lib/supabase/storage";
 import { useEffect, useState } from "react";
+
 export interface PostUser {
   id: string;
   name: string;
@@ -20,15 +21,16 @@ export interface Post {
   profiles?: PostUser;
 }
 
+export const usePosts = () => {
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
 
-export const usePosts =()=>{
-    const [posts,setPosts] = useState<Post[]>([])
-    const [loading,setIsLoading] = useState(false)
-    useEffect(()=>{
-        loadPosts()
-    },[])
+  useEffect(() => {
+    loadPosts();
+  }, []);
 
-const loadPosts = async () => {
+  const loadPosts = async () => {
     if (!user) return;
 
     setIsLoading(true);
@@ -67,34 +69,57 @@ const loadPosts = async () => {
     }
   };
 
-    const {user} = useAuth()
-    const createPosts = async (imageUri:string,description?:string)=>{
-        if(!user)throw new Error("User Not Authenticated");
-        try {
-            const imageUrl = await uploadPostImage(user.id,imageUri);
-            const now = new Date()
-            const expiresAt = new Date(now.getTime()+24*60*60*1000)
-            const {error:postError}= await supabase.from("posts")
-            .insert({
-                user_id:user.id,
-                image_url:imageUrl,
-                description:description||null,
-                expires_at:expiresAt.toISOString(),
-                is_active:true
-            })
-            .select()
-            .single()
-            if(postError){
-                console.error("error creating new post",postError)
-                throw new Error("Error creating post",postError);
-            }
-        } catch (error) {
-            console.log(error)
-        }
-
-
+  const createPost = async (imageUri: string, description?: string) => {
+    if (!user) {
+      throw new Error("User not authenticated");
     }
 
+    try {
+      // Deactivate any existing posts
+      const { error: deactivateError } = await supabase
+        .from("posts")
+        .update({ is_active: false })
+        .eq("user_id", user.id)
+        .eq("is_active", true);
 
-    return {createPosts}
-}
+      if (deactivateError) {
+        console.error("Error deactivating old posts:", deactivateError);
+      }
+
+      const imageUrl = await uploadPostImage(user.id, imageUri);
+
+      // Calculate expiration time
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+      const { error } = await supabase
+        .from("posts")
+        .insert({
+          user_id: user.id,
+          image_url: imageUrl,
+          description: description || null,
+          expires_at: expiresAt.toISOString(),
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error creating post:", error);
+        throw error;
+      }
+
+      // Refresh posts
+      await loadPosts();
+    } catch (error) {
+      console.error("Error in createPost:", error);
+      throw error;
+    }
+  };
+
+  const refreshPosts = async () => {
+    await loadPosts();
+  };
+
+  return { createPost, posts, refreshPosts };
+};
